@@ -76,7 +76,7 @@ func (h *TodoHandler) updateTodo(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/todos/")
 	parts := strings.Split(path, "/")
 	
-	if len(parts) != 2 || parts[1] != "toggle" {
+	if len(parts) < 1 {
 		http.Error(w, "Invalid endpoint", http.StatusBadRequest)
 		return
 	}
@@ -87,6 +87,20 @@ func (h *TodoHandler) updateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// Handle different update operations
+	if len(parts) == 2 && parts[1] == "toggle" {
+		// Toggle completion status
+		h.toggleTodo(w, r, id)
+	} else if len(parts) == 1 {
+		// Full update (edit title and description)
+		h.editTodo(w, r, id)
+	} else {
+		http.Error(w, "Invalid endpoint", http.StatusBadRequest)
+		return
+	}
+}
+
+func (h *TodoHandler) toggleTodo(w http.ResponseWriter, r *http.Request, id int) {
 	todo, err := h.store.Toggle(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -94,6 +108,36 @@ func (h *TodoHandler) updateTodo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("Error toggling todo: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
+	json.NewEncoder(w).Encode(todo)
+}
+
+func (h *TodoHandler) editTodo(w http.ResponseWriter, r *http.Request, id int) {
+	var req struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	
+	if strings.TrimSpace(req.Title) == "" {
+		http.Error(w, "Title is required", http.StatusBadRequest)
+		return
+	}
+	
+	todo, err := h.store.Update(id, req.Title, req.Description)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Todo not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error updating todo: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
