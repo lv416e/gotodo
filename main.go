@@ -5,13 +5,24 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 
+	"gotodo/database"
 	"gotodo/handlers"
 	"gotodo/models"
 )
 
 func main() {
-	store := models.NewTodoStore()
+	// Initialize database
+	dbPath := getEnv("DB_PATH", "./data/todos.db")
+	db, err := database.Initialize(dbPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer db.Close()
+
+	// Initialize store
+	store := models.NewTodoStore(db)
 	todoHandler := handlers.NewTodoHandler(store)
 
 	// API routes
@@ -38,6 +49,16 @@ func main() {
 		tmpl.Execute(w, nil)
 	})
 
-	fmt.Println("Server starting on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	port := getEnv("PORT", "8080")
+	fmt.Printf("Server starting on http://localhost:%s\n", port)
+	fmt.Printf("Database: %s\n", dbPath)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+// getEnv gets an environment variable or returns a default value
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,7 +36,13 @@ func (h *TodoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TodoHandler) getTodos(w http.ResponseWriter, r *http.Request) {
-	todos := h.store.GetAll()
+	todos, err := h.store.GetAll()
+	if err != nil {
+		log.Printf("Error getting todos: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
 	json.NewEncoder(w).Encode(todos)
 }
 
@@ -54,7 +61,13 @@ func (h *TodoHandler) createTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	todo := h.store.Create(req.Title)
+	todo, err := h.store.Create(req.Title)
+	if err != nil {
+		log.Printf("Error creating todo: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(todo)
 }
@@ -74,9 +87,14 @@ func (h *TodoHandler) updateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	todo, found := h.store.Toggle(id)
-	if !found {
-		http.Error(w, "Todo not found", http.StatusNotFound)
+	todo, err := h.store.Toggle(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Todo not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error toggling todo: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 	
@@ -91,8 +109,14 @@ func (h *TodoHandler) deleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	if !h.store.Delete(id) {
-		http.Error(w, "Todo not found", http.StatusNotFound)
+	err = h.store.Delete(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Todo not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error deleting todo: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 	
