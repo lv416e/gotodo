@@ -6,13 +6,18 @@ class TodoApp {
         this.totalCount = document.getElementById('total-count');
         this.completedCount = document.getElementById('completed-count');
         this.categorySelect = null; // Will be initialized after categories load
+        this.categoryFilter = null; // Will be initialized after categories load
+        this.manageCategoriesBtn = document.getElementById('manage-categories');
         this.categories = [];
+        this.allTodos = []; // Store all todos for filtering
+        this.currentFilter = ''; // Current filter category ID
         
         this.init();
     }
     
     init() {
         this.todoForm.addEventListener('submit', (e) => this.handleSubmit(e));
+        this.manageCategoriesBtn.addEventListener('click', () => this.showCategoryManager());
         this.loadCategories();
         this.loadTodos();
     }
@@ -46,6 +51,29 @@ class TodoApp {
         
         categorySelectContainer.innerHTML = selectHtml;
         this.categorySelect = document.getElementById('category-select');
+        
+        // Update filter dropdown
+        this.updateCategoryFilter();
+    }
+    
+    updateCategoryFilter() {
+        this.categoryFilter = document.getElementById('category-filter');
+        if (!this.categoryFilter) return;
+        
+        const filterOptions = this.categories.map(cat => 
+            `<option value="${cat.id}" style="color: ${cat.color}">${this.escapeHtml(cat.name)}</option>`
+        ).join('');
+        
+        this.categoryFilter.innerHTML = `
+            <option value="">すべて</option>
+            <option value="null">カテゴリなし</option>
+            ${filterOptions}
+        `;
+        
+        this.categoryFilter.addEventListener('change', (e) => {
+            this.currentFilter = e.target.value;
+            this.filterTodos();
+        });
     }
     
     async handleSubmit(e) {
@@ -97,12 +125,28 @@ class TodoApp {
             }
             
             const todos = await response.json();
-            this.renderTodos(todos);
-            this.updateStats(todos);
+            this.allTodos = todos; // Store all todos
+            this.filterTodos(); // Apply current filter
         } catch (error) {
             console.error('Failed to load todos:', error);
             this.showError('TODOの読み込みに失敗しました');
         }
+    }
+    
+    filterTodos() {
+        let filteredTodos = this.allTodos;
+        
+        if (this.currentFilter === 'null') {
+            // Show only todos without category
+            filteredTodos = this.allTodos.filter(todo => !todo.category_id);
+        } else if (this.currentFilter && this.currentFilter !== '') {
+            // Show only todos with specific category
+            const categoryId = parseInt(this.currentFilter);
+            filteredTodos = this.allTodos.filter(todo => todo.category_id === categoryId);
+        }
+        
+        this.renderTodos(filteredTodos);
+        this.updateStats(filteredTodos);
     }
     
     renderTodos(todos) {
@@ -341,6 +385,171 @@ class TodoApp {
     
     closeEditModal() {
         const modal = document.getElementById('edit-modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+    
+    showCategoryManager() {
+        const modalHtml = `
+            <div id="category-manager-modal" class="modal">
+                <div class="modal-content category-manager">
+                    <div class="modal-header">
+                        <h3>カテゴリ管理</h3>
+                        <button class="modal-close" onclick="todoApp.closeCategoryManager()">&times;</button>
+                    </div>
+                    <div class="category-manager-content">
+                        <div class="add-category-section">
+                            <h4>新しいカテゴリを追加</h4>
+                            <form id="add-category-form" class="add-category-form">
+                                <div class="form-row">
+                                    <input type="text" id="new-category-name" placeholder="カテゴリ名" required>
+                                    <input type="color" id="new-category-color" value="#007bff">
+                                    <button type="submit">追加</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="categories-list-section">
+                            <h4>既存のカテゴリ</h4>
+                            <div id="categories-list" class="categories-list">
+                                <!-- Categories will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        this.loadCategoriesInManager();
+        
+        // Add form submit handler
+        document.getElementById('add-category-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.addCategory();
+        });
+    }
+    
+    async loadCategoriesInManager() {
+        const categoriesList = document.getElementById('categories-list');
+        if (!categoriesList) return;
+        
+        const categoriesHtml = this.categories.map(cat => `
+            <div class="category-item" data-id="${cat.id}">
+                <div class="category-info">
+                    <span class="category-badge" style="background-color: ${cat.color}">${this.escapeHtml(cat.name)}</span>
+                    <span class="category-details">${cat.color}</span>
+                </div>
+                <div class="category-actions">
+                    <button class="edit-category-btn" onclick="todoApp.editCategory(${cat.id})">編集</button>
+                    <button class="delete-category-btn" onclick="todoApp.deleteCategory(${cat.id})">削除</button>
+                </div>
+            </div>
+        `).join('');
+        
+        categoriesList.innerHTML = categoriesHtml;
+    }
+    
+    async addCategory() {
+        const name = document.getElementById('new-category-name').value.trim();
+        const color = document.getElementById('new-category-color').value;
+        
+        if (!name) {
+            alert('カテゴリ名を入力してください');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/categories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, color }),
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText);
+            }
+            
+            // Reset form
+            document.getElementById('new-category-name').value = '';
+            document.getElementById('new-category-color').value = '#007bff';
+            
+            // Reload categories
+            await this.loadCategories();
+            this.loadCategoriesInManager();
+            
+        } catch (error) {
+            console.error('Failed to add category:', error);
+            alert('カテゴリの追加に失敗しました: ' + error.message);
+        }
+    }
+    
+    async deleteCategory(id) {
+        if (!confirm('このカテゴリを削除しますか？使用中の場合は削除できません。')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/categories/${id}`, {
+                method: 'DELETE',
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText);
+            }
+            
+            // Reload categories
+            await this.loadCategories();
+            this.loadCategoriesInManager();
+            this.loadTodos(); // Reload todos to update display
+            
+        } catch (error) {
+            console.error('Failed to delete category:', error);
+            alert('カテゴリの削除に失敗しました: ' + error.message);
+        }
+    }
+    
+    async editCategory(id) {
+        const category = this.categories.find(cat => cat.id === id);
+        if (!category) return;
+        
+        const newName = prompt('カテゴリ名を編集:', category.name);
+        if (!newName || newName.trim() === '') return;
+        
+        const newColor = prompt('カテゴリの色を編集 (例: #ff0000):', category.color);
+        if (!newColor) return;
+        
+        try {
+            const response = await fetch(`/api/categories/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name: newName.trim(), color: newColor }),
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText);
+            }
+            
+            // Reload categories
+            await this.loadCategories();
+            this.loadCategoriesInManager();
+            this.loadTodos(); // Reload todos to update display
+            
+        } catch (error) {
+            console.error('Failed to edit category:', error);
+            alert('カテゴリの編集に失敗しました: ' + error.message);
+        }
+    }
+    
+    closeCategoryManager() {
+        const modal = document.getElementById('category-manager-modal');
         if (modal) {
             modal.remove();
         }

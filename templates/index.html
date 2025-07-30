@@ -34,9 +34,17 @@
             <section class="todos">
                 <div class="todos-header">
                     <h2>TODO一覧</h2>
-                    <div class="todo-stats">
-                        <span id="total-count">0</span> 項目
-                        (<span id="completed-count">0</span> 完了)
+                    <div class="todo-controls">
+                        <div class="filter-controls">
+                            <select id="category-filter" class="category-filter">
+                                <option value="">すべて</option>
+                            </select>
+                            <button id="manage-categories" class="manage-categories-btn">カテゴリ管理</button>
+                        </div>
+                        <div class="todo-stats">
+                            <span id="total-count">0</span> 項目
+                            (<span id="completed-count">0</span> 完了)
+                        </div>
                     </div>
                 </div>
                 
