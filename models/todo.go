@@ -1,3 +1,5 @@
+// This file contains the old in-memory implementation
+// It's kept for reference and can be removed once SQLite migration is complete
 package models
 
 import (
@@ -5,40 +7,43 @@ import (
 	"time"
 )
 
-type Todo struct {
+// OldTodo represents the original in-memory TODO structure
+type OldTodo struct {
 	ID        int       `json:"id"`
 	Title     string    `json:"title"`
 	Completed bool      `json:"completed"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type TodoStore struct {
-	mu    sync.RWMutex
-	todos []Todo
+// OldTodoStore manages TODO items in memory (deprecated)
+type OldTodoStore struct {
+	mu     sync.RWMutex
+	todos  []OldTodo
 	nextID int
 }
 
-func NewTodoStore() *TodoStore {
-	return &TodoStore{
-		todos:  make([]Todo, 0),
+// NewOldTodoStore creates a new in-memory TodoStore (deprecated)
+func NewOldTodoStore() *OldTodoStore {
+	return &OldTodoStore{
+		todos:  make([]OldTodo, 0),
 		nextID: 1,
 	}
 }
 
-func (ts *TodoStore) GetAll() []Todo {
+func (ts *OldTodoStore) GetAll() []OldTodo {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 	
-	result := make([]Todo, len(ts.todos))
+	result := make([]OldTodo, len(ts.todos))
 	copy(result, ts.todos)
 	return result
 }
 
-func (ts *TodoStore) Create(title string) Todo {
+func (ts *OldTodoStore) Create(title string) OldTodo {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	
-	todo := Todo{
+	todo := OldTodo{
 		ID:        ts.nextID,
 		Title:     title,
 		Completed: false,
@@ -51,7 +56,7 @@ func (ts *TodoStore) Create(title string) Todo {
 	return todo
 }
 
-func (ts *TodoStore) Toggle(id int) (*Todo, bool) {
+func (ts *OldTodoStore) Toggle(id int) (*OldTodo, bool) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	
@@ -65,7 +70,7 @@ func (ts *TodoStore) Toggle(id int) (*Todo, bool) {
 	return nil, false
 }
 
-func (ts *TodoStore) Delete(id int) bool {
+func (ts *OldTodoStore) Delete(id int) bool {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	
