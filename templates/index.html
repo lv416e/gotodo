@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoTODO - Simple TODO App</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 GoTODO</h1>
+            <p>Go言語で作ったシンプルなTODOアプリ</p>
+        </header>
+
+        <main>
+            <section class="add-todo">
+                <form id="todo-form">
+                    <div class="input-group">
+                        <input 
+                            type="text" 
+                            id="todo-input" 
+                            placeholder="新しいTODOを入力してください..." 
+                            required
+                        >
+                        <button type="submit">追加</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="todos">
+                <div class="todos-header">
+                    <h2>TODO一覧</h2>
+                    <div class="todo-stats">
+                        <span id="total-count">0</span> 項目
+                        (<span id="completed-count">0</span> 完了)
+                    </div>
+                </div>
+                
+                <div id="todo-list" class="todo-list">
+                    <div class="empty-state">
+                        <p>TODOがありません</p>
+                        <p>上のフォームから新しいTODOを追加してください</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Made with Go and ❤️</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
