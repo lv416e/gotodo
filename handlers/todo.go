@@ -48,7 +48,8 @@ func (h *TodoHandler) getTodos(w http.ResponseWriter, r *http.Request) {
 
 func (h *TodoHandler) createTodo(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title string `json:"title"`
+		Title      string `json:"title"`
+		CategoryID *int   `json:"category_id"`
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -61,7 +62,15 @@ func (h *TodoHandler) createTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	todo, err := h.store.Create(req.Title)
+	var todo *models.Todo
+	var err error
+	
+	if req.CategoryID != nil {
+		todo, err = h.store.CreateWithCategory(req.Title, req.CategoryID)
+	} else {
+		todo, err = h.store.Create(req.Title)
+	}
+	
 	if err != nil {
 		log.Printf("Error creating todo: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -119,6 +128,7 @@ func (h *TodoHandler) editTodo(w http.ResponseWriter, r *http.Request, id int) {
 	var req struct {
 		Title       string `json:"title"`
 		Description string `json:"description"`
+		CategoryID  *int   `json:"category_id"`
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -131,7 +141,7 @@ func (h *TodoHandler) editTodo(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 	
-	todo, err := h.store.Update(id, req.Title, req.Description)
+	todo, err := h.store.Update(id, req.Title, req.Description, req.CategoryID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, "Todo not found", http.StatusNotFound)

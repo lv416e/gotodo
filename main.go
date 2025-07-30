@@ -21,13 +21,19 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize store
-	store := models.NewTodoStore(db)
-	todoHandler := handlers.NewTodoHandler(store)
+	// Initialize stores
+	todoStore := models.NewTodoStore(db)
+	categoryStore := models.NewCategoryStore(db)
+	
+	// Initialize handlers
+	todoHandler := handlers.NewTodoHandler(todoStore)
+	categoryHandler := handlers.NewCategoryHandler(categoryStore)
 
 	// API routes
 	http.Handle("/api/todos", todoHandler)
 	http.Handle("/api/todos/", todoHandler)
+	http.Handle("/api/categories", categoryHandler)
+	http.Handle("/api/categories/", categoryHandler)
 
 	// Static files
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))

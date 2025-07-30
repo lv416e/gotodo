@@ -45,12 +45,58 @@ func Initialize(dbPath string) (*DB, error) {
 
 // migrate runs the database migrations
 func (db *DB) migrate() error {
-	// Read and execute schema
-	schema := `
+	// Create categories table
+	categoriesSchema := `
+	CREATE TABLE IF NOT EXISTS categories (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name VARCHAR(50) NOT NULL UNIQUE,
+		color VARCHAR(7) DEFAULT '#007bff',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);
+
+	-- Insert default categories
+	INSERT OR IGNORE INTO categories (name, color) VALUES 
+		('仕事', '#ff6b6b'),
+		('プライベート', '#4dabf7'),
+		('勉強', '#51cf66'),
+		('その他', '#868e96');
+	`
+
+	if _, err := db.Exec(categoriesSchema); err != nil {
+		return fmt.Errorf("failed to create categories table: %w", err)
+	}
+
+	// Check if category_id column exists in todos table
+	var columnExists bool
+	err := db.QueryRow(`
+		SELECT COUNT(*) FROM pragma_table_info('todos') 
+		WHERE name='category_id'
+	`).Scan(&columnExists)
+	if err != nil {
+		return fmt.Errorf("failed to check column existence: %w", err)
+	}
+
+	// Add category_id to todos table if it doesn't exist
+	if !columnExists {
+		alterTableSQL := `
+		ALTER TABLE todos ADD COLUMN category_id INTEGER REFERENCES categories(id);
+		CREATE INDEX IF NOT EXISTS idx_todos_category_id ON todos(category_id);
+		`
+		if _, err := db.Exec(alterTableSQL); err != nil {
+			return fmt.Errorf("failed to add category_id column: %w", err)
+		}
+	}
+
+	// Original todos table schema for new installations
+	todosSchema := `
 	CREATE TABLE IF NOT EXISTS todos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		title VARCHAR(255) NOT NULL,
 		description TEXT DEFAULT '',
+		category_id INTEGER REFERENCES categories(id),
 		completed BOOLEAN DEFAULT FALSE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -58,10 +104,11 @@ func (db *DB) migrate() error {
 
 	CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed);
 	CREATE INDEX IF NOT EXISTS idx_todos_created_at ON todos(created_at);
+	CREATE INDEX IF NOT EXISTS idx_todos_category_id ON todos(category_id);
 	`
 
-	if _, err := db.Exec(schema); err != nil {
-		return fmt.Errorf("failed to execute schema: %w", err)
+	if _, err := db.Exec(todosSchema); err != nil {
+		return fmt.Errorf("failed to execute todos schema: %w", err)
 	}
 
 	return nil
