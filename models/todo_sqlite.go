@@ -43,7 +43,16 @@ func (ts *TodoStore) GetAll() ([]Todo, error) {
 			c.id, c.name, c.color
 		FROM todos t
 		LEFT JOIN categories c ON t.category_id = c.id
-		ORDER BY t.priority DESC, t.created_at DESC
+		ORDER BY 
+			t.completed ASC,
+			CASE 
+				WHEN t.due_date IS NULL THEN 2
+				WHEN t.due_date < datetime('now') THEN 0
+				ELSE 1
+			END ASC,
+			t.due_date ASC,
+			t.priority DESC,
+			t.created_at DESC
 	`
 	
 	rows, err := ts.db.Query(query)

@@ -11,6 +11,8 @@ class TodoApp {
         this.priorityFilter = document.getElementById('priority-filter');
         this.dueDateInput = document.getElementById('due-date-input');
         this.manageCategoriesBtn = document.getElementById('manage-categories');
+        this.overdueWarning = document.getElementById('overdue-warning');
+        this.overdueCount = document.getElementById('overdue-count');
         this.categories = [];
         this.allTodos = []; // Store all todos for filtering
         this.currentCategoryFilter = ''; // Current filter category ID
@@ -196,6 +198,9 @@ class TodoApp {
         const updatedAt = new Date(todo.updated_at).toLocaleDateString('ja-JP');
         const completedClass = todo.completed ? 'completed' : '';
         
+        // Add overdue class for visual emphasis
+        const overdueClass = (!todo.completed && todo.due_date && this.isOverdue(todo.due_date)) ? 'overdue-item' : '';
+        
         const categoryBadge = todo.category ? 
             `<span class="category-badge" style="background-color: ${todo.category.color}">${this.escapeHtml(todo.category.name)}</span>` : 
             '';
@@ -205,7 +210,7 @@ class TodoApp {
         const priorityBadge = `<span class="priority-badge priority-${priorityInfo.level}" title="優先度: ${priorityInfo.name}">${priorityInfo.icon}</span>`;
         
         return `
-            <div class="todo-item ${completedClass}" data-id="${todo.id}">
+            <div class="todo-item ${completedClass} ${overdueClass}" data-id="${todo.id}">
                 <input 
                     type="checkbox" 
                     class="todo-checkbox" 
@@ -289,8 +294,23 @@ class TodoApp {
         const total = todos ? todos.length : 0;
         const completed = todos ? todos.filter(todo => todo.completed).length : 0;
         
+        // Count overdue items (only among incomplete todos)
+        const overdue = todos ? todos.filter(todo => 
+            !todo.completed && 
+            todo.due_date && 
+            this.isOverdue(todo.due_date)
+        ).length : 0;
+        
         this.totalCount.textContent = total;
         this.completedCount.textContent = completed;
+        
+        // Show/hide overdue warning
+        if (overdue > 0) {
+            this.overdueCount.textContent = overdue;
+            this.overdueWarning.style.display = 'block';
+        } else {
+            this.overdueWarning.style.display = 'none';
+        }
     }
     
     showError(message) {
@@ -684,6 +704,12 @@ class TodoApp {
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
         return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    
+    isOverdue(dueDateString) {
+        const dueDate = new Date(dueDateString);
+        const now = new Date();
+        return dueDate < now;
     }
     
     escapeHtml(text) {
