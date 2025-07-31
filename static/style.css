@@ -51,10 +51,26 @@ main {
     margin-bottom: 2rem;
 }
 
-.input-group {
+.todo-form-container {
     display: flex;
-    gap: 10px;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.input-row {
+    display: flex;
+    gap: 12px;
     align-items: center;
+}
+
+.main-input {
+    flex-wrap: nowrap;
+}
+
+.options-row {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 12px;
 }
 
 #todo-input {
@@ -366,6 +382,13 @@ button:active {
     font-family: inherit;
 }
 
+.category-select-container,
+.priority-select-container,
+.due-date-container {
+    display: flex;
+    align-items: center;
+}
+
 .category-select-container {
     min-width: 150px;
 }
@@ -374,19 +397,38 @@ button:active {
     min-width: 80px;
 }
 
+.due-date-container {
+    min-width: 170px;
+}
+
 
 /* Style all select elements in forms consistently */
 .category-select,
 .priority-select {
-    width: 100%;
-    padding: 15px;
-    font-size: 1rem;
+    padding: 10px 12px;
+    font-size: 14px;
     border: 2px solid #e1e5e9;
-    border-radius: 8px;
+    border-radius: 6px;
     background: white;
     cursor: pointer;
     transition: border-color 0.3s ease;
     font-family: inherit;
+    min-width: 80px;
+}
+
+.category-select {
+    min-width: 120px;
+}
+
+.priority-select {
+    min-width: 60px;
+}
+
+.category-select:focus,
+.priority-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .category-badge {
@@ -686,6 +728,114 @@ footer {
     
     .todo-date {
         order: 3;
+        margin-right: 0;
+    }
+}
+
+/* Due Date Styles */
+
+.due-date-input {
+    padding: 10px 12px;
+    border: 2px solid #e1e5e9;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    min-width: 170px;
+    transition: border-color 0.3s ease;
+}
+
+.due-date-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+}
+
+.todo-due-date {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 8px;
+    white-space: nowrap;
+}
+
+.todo-due-date.overdue {
+    background-color: #ffe6e6;
+    color: #d63031;
+    border: 1px solid #ff7675;
+}
+
+.todo-due-date.today {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+}
+
+.todo-due-date.tomorrow {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #28a745;
+}
+
+.todo-due-date.soon {
+    background-color: #cce5ff;
+    color: #004085;
+    border: 1px solid #007bff;
+}
+
+.todo-due-date.future {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.todo-due-date.completed {
+    background-color: #e9ecef;
+    color: #6c757d;
+    border: 1px solid #ced4da;
+    opacity: 0.7;
+}
+
+/* Form styling for due date input in modal */
+.form-group input[type="datetime-local"] {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100%;
+    background: white;
+}
+
+.form-group input[type="datetime-local"]:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+}
+
+@media (max-width: 768px) {
+    .options-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .due-date-container,
+    .priority-select-container,
+    .category-select-container {
+        width: 100%;
+    }
+    
+    .due-date-input,
+    .priority-select,
+    .category-select {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .todo-due-date {
+        display: block;
+        margin-bottom: 4px;
         margin-right: 0;
     }
 }
