@@ -115,6 +115,89 @@ func (ts *TodoStore) GetAll() ([]Todo, error) {
 	return todos, nil
 }
 
+// Search retrieves TODO items that match the search query
+func (ts *TodoStore) Search(query string) ([]Todo, error) {
+	searchQuery := `
+		SELECT 
+			t.id, t.title, t.description, t.category_id, t.priority, t.due_date,
+			t.completed, t.created_at, t.updated_at,
+			c.id, c.name, c.color
+		FROM todos t
+		LEFT JOIN categories c ON t.category_id = c.id
+		WHERE t.title LIKE ? OR t.description LIKE ?
+		ORDER BY 
+			t.completed ASC,
+			CASE 
+				WHEN t.due_date IS NULL THEN 2
+				WHEN t.due_date < datetime('now') THEN 0
+				ELSE 1
+			END ASC,
+			t.due_date ASC,
+			t.priority DESC,
+			t.created_at DESC
+	`
+	
+	searchPattern := "%" + query + "%"
+	rows, err := ts.db.Query(searchQuery, searchPattern, searchPattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search todos: %w", err)
+	}
+	defer rows.Close()
+
+	var todos []Todo
+	for rows.Next() {
+		var todo Todo
+		var categoryID, categoryIDJoin sql.NullInt64
+		var categoryName, categoryColor sql.NullString
+		var dueDate sql.NullTime
+		
+		err := rows.Scan(
+			&todo.ID,
+			&todo.Title,
+			&todo.Description,
+			&categoryID,
+			&todo.Priority,
+			&dueDate,
+			&todo.Completed,
+			&todo.CreatedAt,
+			&todo.UpdatedAt,
+			&categoryIDJoin,
+			&categoryName,
+			&categoryColor,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan todo: %w", err)
+		}
+		
+		// Handle due date
+		if dueDate.Valid {
+			todo.DueDate = &dueDate.Time
+		}
+		
+		// Handle category
+		if categoryID.Valid {
+			id := int(categoryID.Int64)
+			todo.CategoryID = &id
+			
+			if categoryIDJoin.Valid && categoryName.Valid && categoryColor.Valid {
+				todo.Category = &Category{
+					ID:    int(categoryIDJoin.Int64),
+					Name:  categoryName.String,
+					Color: categoryColor.String,
+				}
+			}
+		}
+		
+		todos = append(todos, todo)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return todos, nil
+}
+
 // Create adds a new TODO item to the database
 func (ts *TodoStore) Create(title string) (*Todo, error) {
 	query := `

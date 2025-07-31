@@ -13,10 +13,13 @@ class TodoApp {
         this.manageCategoriesBtn = document.getElementById('manage-categories');
         this.overdueWarning = document.getElementById('overdue-warning');
         this.overdueCount = document.getElementById('overdue-count');
+        this.searchInput = document.getElementById('search-input');
+        this.clearSearchBtn = document.getElementById('clear-search');
         this.categories = [];
         this.allTodos = []; // Store all todos for filtering
         this.currentCategoryFilter = ''; // Current filter category ID
         this.currentPriorityFilter = ''; // Current filter priority
+        this.currentSearchQuery = ''; // Current search query
         
         this.init();
     }
@@ -28,6 +31,21 @@ class TodoApp {
             this.currentPriorityFilter = e.target.value;
             this.filterTodos();
         });
+        
+        // Search functionality
+        let searchTimeout;
+        this.searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.currentSearchQuery = e.target.value.trim();
+                this.handleSearch();
+            }, 300); // Debounce search for 300ms
+        });
+        
+        this.clearSearchBtn.addEventListener('click', () => {
+            this.clearSearch();
+        });
+        
         this.loadCategories();
         this.loadTodos();
     }
@@ -142,7 +160,12 @@ class TodoApp {
     
     async loadTodos() {
         try {
-            const response = await fetch('/api/todos');
+            let url = '/api/todos';
+            if (this.currentSearchQuery) {
+                url += `?search=${encodeURIComponent(this.currentSearchQuery)}`;
+            }
+            
+            const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -154,6 +177,25 @@ class TodoApp {
             console.error('Failed to load todos:', error);
             this.showError('TODOの読み込みに失敗しました');
         }
+    }
+    
+    async handleSearch() {
+        // Show/hide clear button
+        if (this.currentSearchQuery) {
+            this.clearSearchBtn.style.display = 'block';
+        } else {
+            this.clearSearchBtn.style.display = 'none';
+        }
+        
+        // Reload todos with search query
+        await this.loadTodos();
+    }
+    
+    clearSearch() {
+        this.currentSearchQuery = '';
+        this.searchInput.value = '';
+        this.clearSearchBtn.style.display = 'none';
+        this.loadTodos();
     }
     
     filterTodos() {
