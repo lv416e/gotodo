@@ -7,10 +7,13 @@ class TodoApp {
         this.completedCount = document.getElementById('completed-count');
         this.categorySelect = null; // Will be initialized after categories load
         this.categoryFilter = null; // Will be initialized after categories load
+        this.prioritySelect = document.getElementById('priority-select');
+        this.priorityFilter = document.getElementById('priority-filter');
         this.manageCategoriesBtn = document.getElementById('manage-categories');
         this.categories = [];
         this.allTodos = []; // Store all todos for filtering
-        this.currentFilter = ''; // Current filter category ID
+        this.currentCategoryFilter = ''; // Current filter category ID
+        this.currentPriorityFilter = ''; // Current filter priority
         
         this.init();
     }
@@ -18,6 +21,10 @@ class TodoApp {
     init() {
         this.todoForm.addEventListener('submit', (e) => this.handleSubmit(e));
         this.manageCategoriesBtn.addEventListener('click', () => this.showCategoryManager());
+        this.priorityFilter.addEventListener('change', (e) => {
+            this.currentPriorityFilter = e.target.value;
+            this.filterTodos();
+        });
         this.loadCategories();
         this.loadTodos();
     }
@@ -71,7 +78,7 @@ class TodoApp {
         `;
         
         this.categoryFilter.addEventListener('change', (e) => {
-            this.currentFilter = e.target.value;
+            this.currentCategoryFilter = e.target.value;
             this.filterTodos();
         });
     }
@@ -85,10 +92,12 @@ class TodoApp {
         const categoryId = this.categorySelect ? 
             (this.categorySelect.value ? parseInt(this.categorySelect.value) : null) : 
             null;
+        const priority = this.prioritySelect.value ? parseInt(this.prioritySelect.value) : 1;
         
         try {
-            await this.createTodo(title, categoryId);
+            await this.createTodo(title, categoryId, priority);
             this.todoInput.value = '';
+            this.prioritySelect.value = '1'; // Reset to low priority
             this.loadTodos();
         } catch (error) {
             console.error('Failed to create todo:', error);
@@ -96,10 +105,13 @@ class TodoApp {
         }
     }
     
-    async createTodo(title, categoryId) {
+    async createTodo(title, categoryId, priority) {
         const body = { title };
         if (categoryId !== null) {
             body.category_id = categoryId;
+        }
+        if (priority !== null && priority !== undefined) {
+            body.priority = priority;
         }
         
         const response = await fetch('/api/todos', {
@@ -136,13 +148,20 @@ class TodoApp {
     filterTodos() {
         let filteredTodos = this.allTodos;
         
-        if (this.currentFilter === 'null') {
+        // Apply category filter
+        if (this.currentCategoryFilter === 'null') {
             // Show only todos without category
-            filteredTodos = this.allTodos.filter(todo => !todo.category_id);
-        } else if (this.currentFilter && this.currentFilter !== '') {
+            filteredTodos = filteredTodos.filter(todo => !todo.category_id);
+        } else if (this.currentCategoryFilter && this.currentCategoryFilter !== '') {
             // Show only todos with specific category
-            const categoryId = parseInt(this.currentFilter);
-            filteredTodos = this.allTodos.filter(todo => todo.category_id === categoryId);
+            const categoryId = parseInt(this.currentCategoryFilter);
+            filteredTodos = filteredTodos.filter(todo => todo.category_id === categoryId);
+        }
+        
+        // Apply priority filter
+        if (this.currentPriorityFilter && this.currentPriorityFilter !== '') {
+            const priority = parseInt(this.currentPriorityFilter);
+            filteredTodos = filteredTodos.filter(todo => todo.priority === priority);
         }
         
         this.renderTodos(filteredTodos);
@@ -172,6 +191,10 @@ class TodoApp {
             `<span class="category-badge" style="background-color: ${todo.category.color}">${this.escapeHtml(todo.category.name)}</span>` : 
             '';
         
+        // Priority badge with appropriate styling
+        const priorityInfo = this.getPriorityInfo(todo.priority);
+        const priorityBadge = `<span class="priority-badge priority-${priorityInfo.level}" title="優先度: ${priorityInfo.name}">${priorityInfo.icon}</span>`;
+        
         return `
             <div class="todo-item ${completedClass}" data-id="${todo.id}">
                 <input 
@@ -182,6 +205,7 @@ class TodoApp {
                 >
                 <div class="todo-content">
                     <div class="todo-header">
+                        ${priorityBadge}
                         <div class="todo-title" onclick="todoApp.editTodo(${todo.id})">
                             ${this.escapeHtml(todo.title)}
                         </div>
@@ -324,6 +348,14 @@ class TodoApp {
                                 ${categoryOptions}
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="edit-priority">優先度</label>
+                            <select id="edit-priority" class="priority-select">
+                                <option value="1" ${todo.priority === 1 ? 'selected' : ''}>低</option>
+                                <option value="2" ${todo.priority === 2 ? 'selected' : ''}>中</option>
+                                <option value="3" ${todo.priority === 3 ? 'selected' : ''}>高</option>
+                            </select>
+                        </div>
                         <div class="form-actions">
                             <button type="button" onclick="todoApp.closeEditModal()">キャンセル</button>
                             <button type="submit">保存</button>
@@ -351,6 +383,8 @@ class TodoApp {
         const description = document.getElementById('edit-description').value.trim();
         const categorySelect = document.getElementById('edit-category');
         const categoryId = categorySelect.value ? parseInt(categorySelect.value) : null;
+        const prioritySelect = document.getElementById('edit-priority');
+        const priority = prioritySelect.value ? parseInt(prioritySelect.value) : 1;
         
         if (!title) {
             alert('タイトルは必須です');
@@ -360,6 +394,9 @@ class TodoApp {
         const body = { title, description };
         if (categoryId !== null) {
             body.category_id = categoryId;
+        }
+        if (priority !== null && priority !== undefined) {
+            body.priority = priority;
         }
         
         try {
@@ -552,6 +589,18 @@ class TodoApp {
         const modal = document.getElementById('category-manager-modal');
         if (modal) {
             modal.remove();
+        }
+    }
+    
+    getPriorityInfo(priority) {
+        switch (priority) {
+            case 3:
+                return { level: 'high', name: '高', icon: '🔴' };
+            case 2:
+                return { level: 'medium', name: '中', icon: '🟡' };
+            case 1:
+            default:
+                return { level: 'low', name: '低', icon: '⚪' };
         }
     }
     
