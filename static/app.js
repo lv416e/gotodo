@@ -9,6 +9,7 @@ class TodoApp {
         this.categoryFilter = null; // Will be initialized after categories load
         this.prioritySelect = document.getElementById('priority-select');
         this.priorityFilter = document.getElementById('priority-filter');
+        this.dueDateInput = document.getElementById('due-date-input');
         this.manageCategoriesBtn = document.getElementById('manage-categories');
         this.categories = [];
         this.allTodos = []; // Store all todos for filtering
@@ -93,11 +94,13 @@ class TodoApp {
             (this.categorySelect.value ? parseInt(this.categorySelect.value) : null) : 
             null;
         const priority = this.prioritySelect.value ? parseInt(this.prioritySelect.value) : 1;
+        const dueDate = this.dueDateInput.value || null;
         
         try {
-            await this.createTodo(title, categoryId, priority);
+            await this.createTodo(title, categoryId, priority, dueDate);
             this.todoInput.value = '';
             this.prioritySelect.value = '1'; // Reset to low priority
+            this.dueDateInput.value = ''; // Reset due date
             this.loadTodos();
         } catch (error) {
             console.error('Failed to create todo:', error);
@@ -105,13 +108,19 @@ class TodoApp {
         }
     }
     
-    async createTodo(title, categoryId, priority) {
-        const body = { title };
+    async createTodo(title, categoryId, priority, dueDate) {
+        const body = { 
+            title,
+            description: '' // Add description field for API compatibility
+        };
         if (categoryId !== null) {
             body.category_id = categoryId;
         }
         if (priority !== null && priority !== undefined) {
             body.priority = priority;
+        }
+        if (dueDate) {
+            body.due_date = dueDate;
         }
         
         const response = await fetch('/api/todos', {
@@ -213,6 +222,7 @@ class TodoApp {
                     </div>
                     ${todo.description ? `<div class="todo-description">${this.escapeHtml(todo.description)}</div>` : ''}
                     <div class="todo-dates">
+                        ${todo.due_date ? `<span class="todo-due-date ${this.getDueDateClass(todo.due_date, todo.completed)}">期限: ${this.formatDueDate(todo.due_date)}</span>` : ''}
                         <span class="todo-date">作成: ${createdAt}</span>
                         ${createdAt !== updatedAt ? `<span class="todo-date">更新: ${updatedAt}</span>` : ''}
                     </div>
@@ -356,6 +366,10 @@ class TodoApp {
                                 <option value="3" ${todo.priority === 3 ? 'selected' : ''}>高</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="edit-due-date">期限</label>
+                            <input type="datetime-local" id="edit-due-date" value="${todo.due_date ? this.formatDateForInput(todo.due_date) : ''}" title="期限を設定（任意）">
+                        </div>
                         <div class="form-actions">
                             <button type="button" onclick="todoApp.closeEditModal()">キャンセル</button>
                             <button type="submit">保存</button>
@@ -385,6 +399,8 @@ class TodoApp {
         const categoryId = categorySelect.value ? parseInt(categorySelect.value) : null;
         const prioritySelect = document.getElementById('edit-priority');
         const priority = prioritySelect.value ? parseInt(prioritySelect.value) : 1;
+        const dueDateInput = document.getElementById('edit-due-date');
+        const dueDate = dueDateInput.value || null;
         
         if (!title) {
             alert('タイトルは必須です');
@@ -397,6 +413,9 @@ class TodoApp {
         }
         if (priority !== null && priority !== undefined) {
             body.priority = priority;
+        }
+        if (dueDate) {
+            body.due_date = dueDate;
         }
         
         try {
@@ -602,6 +621,69 @@ class TodoApp {
             default:
                 return { level: 'low', name: '低', icon: '⚪' };
         }
+    }
+    
+    formatDueDate(dueDateString) {
+        const dueDate = new Date(dueDateString);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+        
+        const diffTime = dueDateOnly - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        const dateStr = dueDate.toLocaleDateString('ja-JP', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        if (diffDays === 0) {
+            return `${dateStr} (今日)`;
+        } else if (diffDays === 1) {
+            return `${dateStr} (明日)`;
+        } else if (diffDays === -1) {
+            return `${dateStr} (昨日)`;
+        } else if (diffDays > 0) {
+            return `${dateStr} (${diffDays}日後)`;
+        } else {
+            return `${dateStr} (${Math.abs(diffDays)}日前)`;
+        }
+    }
+    
+    getDueDateClass(dueDateString, completed) {
+        if (completed) return 'completed';
+        
+        const dueDate = new Date(dueDateString);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+        
+        const diffTime = dueDateOnly - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 0) {
+            return 'overdue';
+        } else if (diffDays === 0) {
+            return 'today';
+        } else if (diffDays === 1) {
+            return 'tomorrow';
+        } else if (diffDays <= 3) {
+            return 'soon';
+        } else {
+            return 'future';
+        }
+    }
+    
+    formatDateForInput(dateString) {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
     
     escapeHtml(text) {

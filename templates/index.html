@@ -16,24 +16,36 @@
         <main>
             <section class="add-todo">
                 <form id="todo-form">
-                    <div class="input-group">
-                        <input 
-                            type="text" 
-                            id="todo-input" 
-                            placeholder="新しいTODOを入力してください..." 
-                            required
-                        >
-                        <div id="category-select-container" class="category-select-container">
-                            <!-- Category select will be populated by JavaScript -->
+                    <div class="todo-form-container">
+                        <div class="input-row main-input">
+                            <input 
+                                type="text" 
+                                id="todo-input" 
+                                placeholder="新しいTODOを入力してください..." 
+                                required
+                            >
+                            <button type="submit">追加</button>
                         </div>
-                        <div class="priority-select-container">
-                            <select id="priority-select" class="priority-select">
-                                <option value="1">低</option>
-                                <option value="2">中</option>
-                                <option value="3">高</option>
-                            </select>
+                        <div class="input-row options-row">
+                            <div id="category-select-container" class="category-select-container">
+                                <!-- Category select will be populated by JavaScript -->
+                            </div>
+                            <div class="priority-select-container">
+                                <select id="priority-select" class="priority-select">
+                                    <option value="1">低</option>
+                                    <option value="2">中</option>
+                                    <option value="3">高</option>
+                                </select>
+                            </div>
+                            <div class="due-date-container">
+                                <input 
+                                    type="datetime-local" 
+                                    id="due-date-input" 
+                                    class="due-date-input"
+                                    title="期限を設定（任意）"
+                                >
+                            </div>
                         </div>
-                        <button type="submit">追加</button>
                     </div>
                 </form>
             </section>
