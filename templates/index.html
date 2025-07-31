@@ -26,6 +26,13 @@
                         <div id="category-select-container" class="category-select-container">
                             <!-- Category select will be populated by JavaScript -->
                         </div>
+                        <div class="priority-select-container">
+                            <select id="priority-select" class="priority-select">
+                                <option value="1">低</option>
+                                <option value="2">中</option>
+                                <option value="3">高</option>
+                            </select>
+                        </div>
                         <button type="submit">追加</button>
                     </div>
                 </form>
@@ -38,6 +45,12 @@
                         <div class="filter-controls">
                             <select id="category-filter" class="category-filter">
                                 <option value="">すべて</option>
+                            </select>
+                            <select id="priority-filter" class="priority-filter">
+                                <option value="">全優先度</option>
+                                <option value="3">高</option>
+                                <option value="2">中</option>
+                                <option value="1">低</option>
                             </select>
                             <button id="manage-categories" class="manage-categories-btn">カテゴリ管理</button>
                         </div>

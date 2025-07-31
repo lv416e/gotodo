@@ -15,6 +15,7 @@ type Todo struct {
 	Description string    `json:"description"`
 	CategoryID  *int      `json:"category_id"`
 	Category    *Category `json:"category,omitempty"`
+	Priority    int       `json:"priority"` // 1:低, 2:中, 3:高
 	Completed   bool      `json:"completed"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -36,12 +37,12 @@ func NewTodoStore(db *database.DB) *TodoStore {
 func (ts *TodoStore) GetAll() ([]Todo, error) {
 	query := `
 		SELECT 
-			t.id, t.title, t.description, t.category_id, 
+			t.id, t.title, t.description, t.category_id, t.priority,
 			t.completed, t.created_at, t.updated_at,
 			c.id, c.name, c.color
 		FROM todos t
 		LEFT JOIN categories c ON t.category_id = c.id
-		ORDER BY t.created_at DESC
+		ORDER BY t.priority DESC, t.created_at DESC
 	`
 	
 	rows, err := ts.db.Query(query)
@@ -61,6 +62,7 @@ func (ts *TodoStore) GetAll() ([]Todo, error) {
 			&todo.Title,
 			&todo.Description,
 			&categoryID,
+			&todo.Priority,
 			&todo.Completed,
 			&todo.CreatedAt,
 			&todo.UpdatedAt,
@@ -98,8 +100,8 @@ func (ts *TodoStore) GetAll() ([]Todo, error) {
 // Create adds a new TODO item to the database
 func (ts *TodoStore) Create(title string) (*Todo, error) {
 	query := `
-		INSERT INTO todos (title, description, category_id, completed, created_at, updated_at)
-		VALUES (?, '', NULL, FALSE, datetime('now'), datetime('now'))
+		INSERT INTO todos (title, description, category_id, priority, completed, created_at, updated_at)
+		VALUES (?, '', NULL, 1, FALSE, datetime('now'), datetime('now'))
 	`
 	
 	result, err := ts.db.Exec(query, title)
@@ -119,11 +121,37 @@ func (ts *TodoStore) Create(title string) (*Todo, error) {
 // CreateWithCategory adds a new TODO item with a category
 func (ts *TodoStore) CreateWithCategory(title string, categoryID *int) (*Todo, error) {
 	query := `
-		INSERT INTO todos (title, description, category_id, completed, created_at, updated_at)
-		VALUES (?, '', ?, FALSE, datetime('now'), datetime('now'))
+		INSERT INTO todos (title, description, category_id, priority, completed, created_at, updated_at)
+		VALUES (?, '', ?, 1, FALSE, datetime('now'), datetime('now'))
 	`
 	
 	result, err := ts.db.Exec(query, title, categoryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create todo: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last insert id: %w", err)
+	}
+
+	// Retrieve the created todo
+	return ts.GetByID(int(id))
+}
+
+// CreateWithCategoryAndPriority adds a new TODO item with category and priority
+func (ts *TodoStore) CreateWithCategoryAndPriority(title string, categoryID *int, priority int) (*Todo, error) {
+	// Validate priority range
+	if priority < 1 || priority > 3 {
+		priority = 1 // Default to low priority if invalid
+	}
+	
+	query := `
+		INSERT INTO todos (title, description, category_id, priority, completed, created_at, updated_at)
+		VALUES (?, '', ?, ?, FALSE, datetime('now'), datetime('now'))
+	`
+	
+	result, err := ts.db.Exec(query, title, categoryID, priority)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create todo: %w", err)
 	}
@@ -141,7 +169,7 @@ func (ts *TodoStore) CreateWithCategory(title string, categoryID *int) (*Todo, e
 func (ts *TodoStore) GetByID(id int) (*Todo, error) {
 	query := `
 		SELECT 
-			t.id, t.title, t.description, t.category_id, 
+			t.id, t.title, t.description, t.category_id, t.priority,
 			t.completed, t.created_at, t.updated_at,
 			c.id, c.name, c.color
 		FROM todos t
@@ -158,6 +186,7 @@ func (ts *TodoStore) GetByID(id int) (*Todo, error) {
 		&todo.Title,
 		&todo.Description,
 		&categoryID,
+		&todo.Priority,
 		&todo.Completed,
 		&todo.CreatedAt,
 		&todo.UpdatedAt,
@@ -215,15 +244,21 @@ func (ts *TodoStore) Toggle(id int) (*Todo, error) {
 	return ts.GetByID(id)
 }
 
-// Update modifies a TODO item's title, description, and category
-func (ts *TodoStore) Update(id int, title, description string, categoryID *int) (*Todo, error) {
+// Update modifies a TODO item's title, description, category, and priority
+func (ts *TodoStore) Update(id int, title, description string, categoryID *int, priority *int) (*Todo, error) {
+	// Validate priority if provided
+	if priority != nil && (*priority < 1 || *priority > 3) {
+		defaultPriority := 1
+		priority = &defaultPriority
+	}
+	
 	query := `
 		UPDATE todos 
-		SET title = ?, description = ?, category_id = ?, updated_at = datetime('now')
+		SET title = ?, description = ?, category_id = ?, priority = COALESCE(?, priority), updated_at = datetime('now')
 		WHERE id = ?
 	`
 	
-	result, err := ts.db.Exec(query, title, description, categoryID, id)
+	result, err := ts.db.Exec(query, title, description, categoryID, priority, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update todo: %w", err)
 	}

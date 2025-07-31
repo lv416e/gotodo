@@ -50,6 +50,7 @@ func (h *TodoHandler) createTodo(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Title      string `json:"title"`
 		CategoryID *int   `json:"category_id"`
+		Priority   *int   `json:"priority"`
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -65,8 +66,19 @@ func (h *TodoHandler) createTodo(w http.ResponseWriter, r *http.Request) {
 	var todo *models.Todo
 	var err error
 	
-	if req.CategoryID != nil {
-		todo, err = h.store.CreateWithCategory(req.Title, req.CategoryID)
+	// Validate priority if provided
+	if req.Priority != nil && (*req.Priority < 1 || *req.Priority > 3) {
+		http.Error(w, "Priority must be between 1 (low) and 3 (high)", http.StatusBadRequest)
+		return
+	}
+	
+	// Choose appropriate creation method based on provided fields
+	if req.CategoryID != nil || req.Priority != nil {
+		priority := 1 // Default priority
+		if req.Priority != nil {
+			priority = *req.Priority
+		}
+		todo, err = h.store.CreateWithCategoryAndPriority(req.Title, req.CategoryID, priority)
 	} else {
 		todo, err = h.store.Create(req.Title)
 	}
@@ -129,6 +141,7 @@ func (h *TodoHandler) editTodo(w http.ResponseWriter, r *http.Request, id int) {
 		Title       string `json:"title"`
 		Description string `json:"description"`
 		CategoryID  *int   `json:"category_id"`
+		Priority    *int   `json:"priority"`
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -141,7 +154,13 @@ func (h *TodoHandler) editTodo(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 	
-	todo, err := h.store.Update(id, req.Title, req.Description, req.CategoryID)
+	// Validate priority if provided
+	if req.Priority != nil && (*req.Priority < 1 || *req.Priority > 3) {
+		http.Error(w, "Priority must be between 1 (low) and 3 (high)", http.StatusBadRequest)
+		return
+	}
+	
+	todo, err := h.store.Update(id, req.Title, req.Description, req.CategoryID, req.Priority)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, "Todo not found", http.StatusNotFound)

@@ -90,6 +90,27 @@ func (db *DB) migrate() error {
 		}
 	}
 
+	// Check if priority column exists in todos table
+	var priorityColumnExists bool
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM pragma_table_info('todos') 
+		WHERE name='priority'
+	`).Scan(&priorityColumnExists)
+	if err != nil {
+		return fmt.Errorf("failed to check priority column existence: %w", err)
+	}
+
+	// Add priority to todos table if it doesn't exist
+	if !priorityColumnExists {
+		alterPrioritySQL := `
+		ALTER TABLE todos ADD COLUMN priority INTEGER DEFAULT 1;
+		CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority);
+		`
+		if _, err := db.Exec(alterPrioritySQL); err != nil {
+			return fmt.Errorf("failed to add priority column: %w", err)
+		}
+	}
+
 	// Original todos table schema for new installations
 	todosSchema := `
 	CREATE TABLE IF NOT EXISTS todos (
@@ -97,6 +118,7 @@ func (db *DB) migrate() error {
 		title VARCHAR(255) NOT NULL,
 		description TEXT DEFAULT '',
 		category_id INTEGER REFERENCES categories(id),
+		priority INTEGER DEFAULT 1,
 		completed BOOLEAN DEFAULT FALSE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -105,6 +127,7 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed);
 	CREATE INDEX IF NOT EXISTS idx_todos_created_at ON todos(created_at);
 	CREATE INDEX IF NOT EXISTS idx_todos_category_id ON todos(category_id);
+	CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority);
 	`
 
 	if _, err := db.Exec(todosSchema); err != nil {
