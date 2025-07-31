@@ -111,6 +111,27 @@ func (db *DB) migrate() error {
 		}
 	}
 
+	// Check if due_date column exists in todos table
+	var dueDateColumnExists bool
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM pragma_table_info('todos') 
+		WHERE name='due_date'
+	`).Scan(&dueDateColumnExists)
+	if err != nil {
+		return fmt.Errorf("failed to check due_date column existence: %w", err)
+	}
+
+	// Add due_date to todos table if it doesn't exist
+	if !dueDateColumnExists {
+		alterDueDateSQL := `
+		ALTER TABLE todos ADD COLUMN due_date DATETIME;
+		CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
+		`
+		if _, err := db.Exec(alterDueDateSQL); err != nil {
+			return fmt.Errorf("failed to add due_date column: %w", err)
+		}
+	}
+
 	// Original todos table schema for new installations
 	todosSchema := `
 	CREATE TABLE IF NOT EXISTS todos (
@@ -119,6 +140,7 @@ func (db *DB) migrate() error {
 		description TEXT DEFAULT '',
 		category_id INTEGER REFERENCES categories(id),
 		priority INTEGER DEFAULT 1,
+		due_date DATETIME,
 		completed BOOLEAN DEFAULT FALSE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -128,6 +150,7 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_todos_created_at ON todos(created_at);
 	CREATE INDEX IF NOT EXISTS idx_todos_category_id ON todos(category_id);
 	CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority);
+	CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
 	`
 
 	if _, err := db.Exec(todosSchema); err != nil {

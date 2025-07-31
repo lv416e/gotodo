@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"gotodo/models"
 )
@@ -48,9 +49,11 @@ func (h *TodoHandler) getTodos(w http.ResponseWriter, r *http.Request) {
 
 func (h *TodoHandler) createTodo(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title      string `json:"title"`
-		CategoryID *int   `json:"category_id"`
-		Priority   *int   `json:"priority"`
+		Title       string  `json:"title"`
+		Description string  `json:"description"`
+		CategoryID  *int    `json:"category_id"`
+		Priority    *int    `json:"priority"`
+		DueDate     *string `json:"due_date"` // ISO format string
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -63,26 +66,31 @@ func (h *TodoHandler) createTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	var todo *models.Todo
-	var err error
-	
 	// Validate priority if provided
 	if req.Priority != nil && (*req.Priority < 1 || *req.Priority > 3) {
 		http.Error(w, "Priority must be between 1 (low) and 3 (high)", http.StatusBadRequest)
 		return
 	}
 	
-	// Choose appropriate creation method based on provided fields
-	if req.CategoryID != nil || req.Priority != nil {
-		priority := 1 // Default priority
-		if req.Priority != nil {
-			priority = *req.Priority
+	// Parse due date if provided
+	var dueDate *time.Time
+	if req.DueDate != nil && *req.DueDate != "" {
+		parsed, err := time.Parse("2006-01-02T15:04", *req.DueDate)
+		if err != nil {
+			http.Error(w, "Invalid due date format. Use YYYY-MM-DDTHH:MM", http.StatusBadRequest)
+			return
 		}
-		todo, err = h.store.CreateWithCategoryAndPriority(req.Title, req.CategoryID, priority)
-	} else {
-		todo, err = h.store.Create(req.Title)
+		dueDate = &parsed
 	}
 	
+	// Set default priority if not provided
+	priority := 1 // Default priority
+	if req.Priority != nil {
+		priority = *req.Priority
+	}
+	
+	// Use CreateFull method to handle all fields
+	todo, err := h.store.CreateFull(req.Title, req.Description, req.CategoryID, priority, dueDate)
 	if err != nil {
 		log.Printf("Error creating todo: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -138,10 +146,11 @@ func (h *TodoHandler) toggleTodo(w http.ResponseWriter, r *http.Request, id int)
 
 func (h *TodoHandler) editTodo(w http.ResponseWriter, r *http.Request, id int) {
 	var req struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		CategoryID  *int   `json:"category_id"`
-		Priority    *int   `json:"priority"`
+		Title       string  `json:"title"`
+		Description string  `json:"description"`
+		CategoryID  *int    `json:"category_id"`
+		Priority    *int    `json:"priority"`
+		DueDate     *string `json:"due_date"` // ISO format string
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -160,7 +169,18 @@ func (h *TodoHandler) editTodo(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 	
-	todo, err := h.store.Update(id, req.Title, req.Description, req.CategoryID, req.Priority)
+	// Parse due date if provided
+	var dueDate *time.Time
+	if req.DueDate != nil && *req.DueDate != "" {
+		parsed, err := time.Parse("2006-01-02T15:04", *req.DueDate)
+		if err != nil {
+			http.Error(w, "Invalid due date format. Use YYYY-MM-DDTHH:MM", http.StatusBadRequest)
+			return
+		}
+		dueDate = &parsed
+	}
+	
+	todo, err := h.store.Update(id, req.Title, req.Description, req.CategoryID, req.Priority, dueDate)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, "Todo not found", http.StatusNotFound)
