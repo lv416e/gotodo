@@ -171,6 +171,27 @@ button:active {
 .todo-stats {
     color: #666;
     font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.overdue-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ffc107;
+    font-size: 0.85rem;
+    font-weight: 500;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
 }
 
 .todo-list {
@@ -252,6 +273,36 @@ button:active {
 
 .todo-item.completed .todo-description {
     color: #999;
+}
+
+.todo-item.overdue-item {
+    background-color: #ffeaea;
+    border-left: 4px solid #ff4757;
+    animation: overdue-highlight 3s ease-in-out;
+}
+
+.todo-item.overdue-item .todo-title {
+    color: #c23616;
+    font-weight: 600;
+}
+
+.todo-item.completed.overdue-item {
+    background-color: inherit;
+    border-left: none;
+    animation: none;
+}
+
+.todo-item.completed.overdue-item .todo-title {
+    color: #999;
+    font-weight: normal;
+}
+
+@keyframes overdue-highlight {
+    0% { background-color: #ffeaea; }
+    25% { background-color: #ffe0e0; }
+    50% { background-color: #ffeaea; }
+    75% { background-color: #ffe0e0; }
+    100% { background-color: #ffeaea; }
 }
 
 .todo-dates {
