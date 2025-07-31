@@ -17,6 +17,8 @@ class TodoApp {
         this.clearSearchBtn = document.getElementById('clear-search');
         this.statusFilter = document.getElementById('status-filter');
         this.dueDateFilter = document.getElementById('due-date-filter');
+        this.categoryProgress = document.getElementById('category-progress');
+        this.categoryProgressList = document.getElementById('category-progress-list');
         this.categories = [];
         this.allTodos = []; // Store all todos for filtering
         this.currentCategoryFilter = ''; // Current filter category ID
@@ -410,6 +412,74 @@ class TodoApp {
         } else {
             this.overdueWarning.style.display = 'none';
         }
+        
+        // Update category progress
+        this.updateCategoryProgress();
+    }
+    
+    updateCategoryProgress() {
+        if (!this.categories || this.categories.length === 0) {
+            this.categoryProgress.style.display = 'none';
+            return;
+        }
+        
+        // Calculate progress for each category
+        const categoryStats = this.categories.map(category => {
+            const categoryTodos = this.allTodos.filter(todo => todo.category_id === category.id);
+            const completedTodos = categoryTodos.filter(todo => todo.completed);
+            const total = categoryTodos.length;
+            const completed = completedTodos.length;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            return {
+                ...category,
+                total,
+                completed,
+                percentage
+            };
+        });
+        
+        // Add "カテゴリなし" category
+        const uncategorizedTodos = this.allTodos.filter(todo => !todo.category_id);
+        if (uncategorizedTodos.length > 0) {
+            const completedUncategorized = uncategorizedTodos.filter(todo => todo.completed);
+            categoryStats.push({
+                id: null,
+                name: 'カテゴリなし',
+                color: '#6c757d',
+                total: uncategorizedTodos.length,
+                completed: completedUncategorized.length,
+                percentage: Math.round((completedUncategorized.length / uncategorizedTodos.length) * 100)
+            });
+        }
+        
+        // Filter out categories with no todos
+        const activeCategoryStats = categoryStats.filter(stat => stat.total > 0);
+        
+        if (activeCategoryStats.length === 0) {
+            this.categoryProgress.style.display = 'none';
+            return;
+        }
+        
+        // Show category progress section
+        this.categoryProgress.style.display = 'block';
+        
+        // Generate HTML for category progress
+        const progressHTML = activeCategoryStats.map(stat => `
+            <div class="category-progress-item">
+                <div class="category-info">
+                    <span class="category-badge" style="background-color: ${stat.color}">${this.escapeHtml(stat.name)}</span>
+                </div>
+                <div class="category-progress-bar">
+                    <div class="category-progress-fill" style="width: ${stat.percentage}%; background-color: ${stat.color}"></div>
+                </div>
+                <div class="category-progress-text">
+                    ${stat.completed}/${stat.total} (${stat.percentage}%)
+                </div>
+            </div>
+        `).join('');
+        
+        this.categoryProgressList.innerHTML = progressHTML;
     }
     
     showError(message) {
