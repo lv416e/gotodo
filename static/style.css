@@ -356,9 +356,7 @@ button:active {
 }
 
 #edit-title,
-#edit-description,
-.category-select,
-.priority-select {
+#edit-description {
     width: 100%;
     padding: 12px;
     border: 2px solid #e1e5e9;
@@ -376,21 +374,19 @@ button:active {
     min-width: 80px;
 }
 
-.category-select,
-.priority-select,
-.priority-filter {
-    background: white;
-    cursor: pointer;
-}
 
-/* Style priority-select in add form similar to category-select */
-#priority-select,
-#category-select {
+/* Style all select elements in forms consistently */
+.category-select,
+.priority-select {
+    width: 100%;
     padding: 15px;
     font-size: 1rem;
     border: 2px solid #e1e5e9;
     border-radius: 8px;
-    min-width: 100%;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+    font-family: inherit;
 }
 
 .category-badge {
@@ -432,7 +428,12 @@ button:active {
 }
 
 #edit-title:focus,
-#edit-description:focus,
+#edit-description:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .category-select:focus,
 .priority-select:focus {
     outline: none;
