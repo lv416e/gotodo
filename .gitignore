@@ -69,6 +69,11 @@ temp/
 dist/
 build/
 gotodo
+main
 
-# Air live reload tool
+# Air live reload tool and config
 tmp/
+.air.toml
+
+# Development directories
+.serena/
