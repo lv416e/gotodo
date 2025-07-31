@@ -1,0 +1,19 @@
+services:
+  gotodo-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: gotodo-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Persist SQLite database
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/todos.db
+      - PORT=8080
+      - GO_ENV=development
+    # CompileDaemon is set in Dockerfile.dev CMD
+    restart: unless-stopped
