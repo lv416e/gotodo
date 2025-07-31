@@ -37,7 +37,20 @@ func (h *TodoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TodoHandler) getTodos(w http.ResponseWriter, r *http.Request) {
-	todos, err := h.store.GetAll()
+	// Get query parameters
+	searchQuery := r.URL.Query().Get("search")
+	
+	var todos []models.Todo
+	var err error
+	
+	if searchQuery != "" {
+		// Use search functionality
+		todos, err = h.store.Search(searchQuery)
+	} else {
+		// Get all todos
+		todos, err = h.store.GetAll()
+	}
+	
 	if err != nil {
 		log.Printf("Error getting todos: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
