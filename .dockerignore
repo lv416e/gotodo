@@ -1,0 +1,42 @@
+# Git files
+.git
+.gitignore
+.github
+
+# Documentation
+docs/
+README.md
+LICENSE
+
+# Data files (will be mounted as volume)
+data/
+*.db
+*.db-journal
+
+# Temporary files
+*.tmp
+*.log
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# Go build artifacts
+*.exe
+*.test
+*.out
+main
+vendor/
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
