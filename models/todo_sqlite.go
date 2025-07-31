@@ -10,15 +10,16 @@ import (
 
 // Todo represents a TODO item with additional fields for SQLite
 type Todo struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	CategoryID  *int      `json:"category_id"`
-	Category    *Category `json:"category,omitempty"`
-	Priority    int       `json:"priority"` // 1:低, 2:中, 3:高
-	Completed   bool      `json:"completed"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          int        `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	CategoryID  *int       `json:"category_id"`
+	Category    *Category  `json:"category,omitempty"`
+	Priority    int        `json:"priority"` // 1:低, 2:中, 3:高
+	DueDate     *time.Time `json:"due_date"`
+	Completed   bool       `json:"completed"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // TodoStore manages TODO items using SQLite database
@@ -37,7 +38,7 @@ func NewTodoStore(db *database.DB) *TodoStore {
 func (ts *TodoStore) GetAll() ([]Todo, error) {
 	query := `
 		SELECT 
-			t.id, t.title, t.description, t.category_id, t.priority,
+			t.id, t.title, t.description, t.category_id, t.priority, t.due_date,
 			t.completed, t.created_at, t.updated_at,
 			c.id, c.name, c.color
 		FROM todos t
@@ -56,6 +57,7 @@ func (ts *TodoStore) GetAll() ([]Todo, error) {
 		var todo Todo
 		var categoryID, categoryIDJoin sql.NullInt64
 		var categoryName, categoryColor sql.NullString
+		var dueDate sql.NullTime
 		
 		err := rows.Scan(
 			&todo.ID,
@@ -63,6 +65,7 @@ func (ts *TodoStore) GetAll() ([]Todo, error) {
 			&todo.Description,
 			&categoryID,
 			&todo.Priority,
+			&dueDate,
 			&todo.Completed,
 			&todo.CreatedAt,
 			&todo.UpdatedAt,
@@ -74,6 +77,12 @@ func (ts *TodoStore) GetAll() ([]Todo, error) {
 			return nil, fmt.Errorf("failed to scan todo: %w", err)
 		}
 		
+		// Handle due date
+		if dueDate.Valid {
+			todo.DueDate = &dueDate.Time
+		}
+		
+		// Handle category
 		if categoryID.Valid {
 			id := int(categoryID.Int64)
 			todo.CategoryID = &id
@@ -147,11 +156,37 @@ func (ts *TodoStore) CreateWithCategoryAndPriority(title string, categoryID *int
 	}
 	
 	query := `
-		INSERT INTO todos (title, description, category_id, priority, completed, created_at, updated_at)
-		VALUES (?, '', ?, ?, FALSE, datetime('now'), datetime('now'))
+		INSERT INTO todos (title, description, category_id, priority, due_date, completed, created_at, updated_at)
+		VALUES (?, '', ?, ?, NULL, FALSE, datetime('now'), datetime('now'))
 	`
 	
 	result, err := ts.db.Exec(query, title, categoryID, priority)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create todo: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last insert id: %w", err)
+	}
+
+	// Retrieve the created todo
+	return ts.GetByID(int(id))
+}
+
+// CreateFull adds a new TODO item with all fields
+func (ts *TodoStore) CreateFull(title, description string, categoryID *int, priority int, dueDate *time.Time) (*Todo, error) {
+	// Validate priority range
+	if priority < 1 || priority > 3 {
+		priority = 1 // Default to low priority if invalid
+	}
+	
+	query := `
+		INSERT INTO todos (title, description, category_id, priority, due_date, completed, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, FALSE, datetime('now'), datetime('now'))
+	`
+	
+	result, err := ts.db.Exec(query, title, description, categoryID, priority, dueDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create todo: %w", err)
 	}
@@ -169,7 +204,7 @@ func (ts *TodoStore) CreateWithCategoryAndPriority(title string, categoryID *int
 func (ts *TodoStore) GetByID(id int) (*Todo, error) {
 	query := `
 		SELECT 
-			t.id, t.title, t.description, t.category_id, t.priority,
+			t.id, t.title, t.description, t.category_id, t.priority, t.due_date,
 			t.completed, t.created_at, t.updated_at,
 			c.id, c.name, c.color
 		FROM todos t
@@ -180,6 +215,7 @@ func (ts *TodoStore) GetByID(id int) (*Todo, error) {
 	var todo Todo
 	var categoryID, categoryIDJoin sql.NullInt64
 	var categoryName, categoryColor sql.NullString
+	var dueDate sql.NullTime
 	
 	err := ts.db.QueryRow(query, id).Scan(
 		&todo.ID,
@@ -187,6 +223,7 @@ func (ts *TodoStore) GetByID(id int) (*Todo, error) {
 		&todo.Description,
 		&categoryID,
 		&todo.Priority,
+		&dueDate,
 		&todo.Completed,
 		&todo.CreatedAt,
 		&todo.UpdatedAt,
@@ -202,6 +239,12 @@ func (ts *TodoStore) GetByID(id int) (*Todo, error) {
 		return nil, fmt.Errorf("failed to get todo: %w", err)
 	}
 	
+	// Handle due date
+	if dueDate.Valid {
+		todo.DueDate = &dueDate.Time
+	}
+	
+	// Handle category
 	if categoryID.Valid {
 		id := int(categoryID.Int64)
 		todo.CategoryID = &id
@@ -244,8 +287,8 @@ func (ts *TodoStore) Toggle(id int) (*Todo, error) {
 	return ts.GetByID(id)
 }
 
-// Update modifies a TODO item's title, description, category, and priority
-func (ts *TodoStore) Update(id int, title, description string, categoryID *int, priority *int) (*Todo, error) {
+// Update modifies a TODO item's title, description, category, priority, and due date
+func (ts *TodoStore) Update(id int, title, description string, categoryID *int, priority *int, dueDate *time.Time) (*Todo, error) {
 	// Validate priority if provided
 	if priority != nil && (*priority < 1 || *priority > 3) {
 		defaultPriority := 1
@@ -254,11 +297,11 @@ func (ts *TodoStore) Update(id int, title, description string, categoryID *int, 
 	
 	query := `
 		UPDATE todos 
-		SET title = ?, description = ?, category_id = ?, priority = COALESCE(?, priority), updated_at = datetime('now')
+		SET title = ?, description = ?, category_id = ?, priority = COALESCE(?, priority), due_date = ?, updated_at = datetime('now')
 		WHERE id = ?
 	`
 	
-	result, err := ts.db.Exec(query, title, description, categoryID, priority, id)
+	result, err := ts.db.Exec(query, title, description, categoryID, priority, dueDate, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update todo: %w", err)
 	}
