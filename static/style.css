@@ -169,7 +169,8 @@ button:active {
 .category-filter,
 .priority-filter,
 .status-filter,
-.due-date-filter {
+.due-date-filter,
+.sort-order {
     padding: 8px 12px;
     border: 2px solid #e1e5e9;
     border-radius: 6px;
@@ -182,7 +183,8 @@ button:active {
 .category-filter:focus,
 .priority-filter:focus,
 .status-filter:focus,
-.due-date-filter:focus {
+.due-date-filter:focus,
+.sort-order:focus {
     outline: none;
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -862,6 +864,10 @@ footer {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
+    }
+    
+    .filter-controls .sort-order {
+        grid-column: span 2;
     }
     
     .filter-controls .manage-categories-btn {
