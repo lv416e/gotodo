@@ -19,6 +19,7 @@ class TodoApp {
         this.dueDateFilter = document.getElementById('due-date-filter');
         this.categoryProgress = document.getElementById('category-progress');
         this.categoryProgressList = document.getElementById('category-progress-list');
+        this.sortOrder = document.getElementById('sort-order');
         this.categories = [];
         this.allTodos = []; // Store all todos for filtering
         this.currentCategoryFilter = ''; // Current filter category ID
@@ -26,6 +27,7 @@ class TodoApp {
         this.currentSearchQuery = ''; // Current search query
         this.currentStatusFilter = ''; // Current status filter
         this.currentDueDateFilter = ''; // Current due date filter
+        this.currentSortOrder = 'smart'; // Current sort order
         
         this.init();
     }
@@ -47,6 +49,15 @@ class TodoApp {
             this.currentDueDateFilter = e.target.value;
             this.filterTodos();
         });
+        
+        this.sortOrder.addEventListener('change', (e) => {
+            this.currentSortOrder = e.target.value;
+            this.saveSortPreference();
+            this.filterTodos();
+        });
+        
+        // Load saved sort preference
+        this.loadSortPreference();
         
         // Search functionality
         let searchTimeout;
@@ -276,8 +287,99 @@ class TodoApp {
             });
         }
         
+        // Apply sorting
+        filteredTodos = this.sortTodos(filteredTodos);
+        
         this.renderTodos(filteredTodos);
         this.updateStats(filteredTodos);
+    }
+    
+    sortTodos(todos) {
+        if (!todos || todos.length === 0) return todos;
+        
+        const sortedTodos = [...todos]; // Create a copy to avoid mutating original array
+        
+        switch (this.currentSortOrder) {
+            case 'smart':
+                // Smart sort: completed status -> overdue priority -> due date -> priority -> created date
+                return sortedTodos.sort((a, b) => {
+                    // First by completion status
+                    if (a.completed !== b.completed) {
+                        return a.completed ? 1 : -1;
+                    }
+                    
+                    // Then by overdue status (for incomplete items)
+                    if (!a.completed && !b.completed) {
+                        const aOverdue = a.due_date && this.isOverdue(a.due_date);
+                        const bOverdue = b.due_date && this.isOverdue(b.due_date);
+                        
+                        if (aOverdue !== bOverdue) {
+                            return aOverdue ? -1 : 1;
+                        }
+                        
+                        // Then by due date
+                        if (a.due_date && b.due_date) {
+                            return new Date(a.due_date) - new Date(b.due_date);
+                        } else if (a.due_date) {
+                            return -1;
+                        } else if (b.due_date) {
+                            return 1;
+                        }
+                    }
+                    
+                    // Then by priority (high to low)
+                    if (a.priority !== b.priority) {
+                        return b.priority - a.priority;
+                    }
+                    
+                    // Finally by created date (newest first)
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+                
+            case 'due_date':
+                return sortedTodos.sort((a, b) => {
+                    if (a.due_date && b.due_date) {
+                        return new Date(a.due_date) - new Date(b.due_date);
+                    } else if (a.due_date) {
+                        return -1;
+                    } else if (b.due_date) {
+                        return 1;
+                    }
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+                
+            case 'priority':
+                return sortedTodos.sort((a, b) => {
+                    if (a.priority !== b.priority) {
+                        return b.priority - a.priority;
+                    }
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+                
+            case 'created_at':
+                return sortedTodos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                
+            case 'updated_at':
+                return sortedTodos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+                
+            case 'title':
+                return sortedTodos.sort((a, b) => a.title.localeCompare(b.title, 'ja'));
+                
+            default:
+                return sortedTodos;
+        }
+    }
+    
+    saveSortPreference() {
+        localStorage.setItem('gotodo_sort_order', this.currentSortOrder);
+    }
+    
+    loadSortPreference() {
+        const savedSort = localStorage.getItem('gotodo_sort_order');
+        if (savedSort) {
+            this.currentSortOrder = savedSort;
+            this.sortOrder.value = savedSort;
+        }
     }
     
     renderTodos(todos) {
