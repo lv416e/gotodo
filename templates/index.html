@@ -64,6 +64,19 @@
                             <button id="clear-search" class="clear-search-btn" style="display: none;">クリア</button>
                         </div>
                         <div class="filter-controls">
+                            <select id="status-filter" class="status-filter">
+                                <option value="">全状態</option>
+                                <option value="incomplete">未完了</option>
+                                <option value="completed">完了済み</option>
+                            </select>
+                            <select id="due-date-filter" class="due-date-filter">
+                                <option value="">全期限</option>
+                                <option value="overdue">期限切れ</option>
+                                <option value="today">今日</option>
+                                <option value="tomorrow">明日</option>
+                                <option value="this_week">今週</option>
+                                <option value="no_due_date">期限なし</option>
+                            </select>
                             <select id="category-filter" class="category-filter">
                                 <option value="">すべて</option>
                             </select>

@@ -167,7 +167,9 @@ button:active {
 }
 
 .category-filter,
-.priority-filter {
+.priority-filter,
+.status-filter,
+.due-date-filter {
     padding: 8px 12px;
     border: 2px solid #e1e5e9;
     border-radius: 6px;
@@ -178,7 +180,9 @@ button:active {
 }
 
 .category-filter:focus,
-.priority-filter:focus {
+.priority-filter:focus,
+.status-filter:focus,
+.due-date-filter:focus {
     outline: none;
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -796,7 +800,17 @@ footer {
     }
     
     .filter-controls {
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    
+    .filter-controls .manage-categories-btn {
+        grid-column: span 2;
+    }
+    
+    .search-controls {
+        margin-bottom: 0.5rem;
     }
     
     .add-category-form .form-row {
