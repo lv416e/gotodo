@@ -15,11 +15,15 @@ class TodoApp {
         this.overdueCount = document.getElementById('overdue-count');
         this.searchInput = document.getElementById('search-input');
         this.clearSearchBtn = document.getElementById('clear-search');
+        this.statusFilter = document.getElementById('status-filter');
+        this.dueDateFilter = document.getElementById('due-date-filter');
         this.categories = [];
         this.allTodos = []; // Store all todos for filtering
         this.currentCategoryFilter = ''; // Current filter category ID
         this.currentPriorityFilter = ''; // Current filter priority
         this.currentSearchQuery = ''; // Current search query
+        this.currentStatusFilter = ''; // Current status filter
+        this.currentDueDateFilter = ''; // Current due date filter
         
         this.init();
     }
@@ -29,6 +33,16 @@ class TodoApp {
         this.manageCategoriesBtn.addEventListener('click', () => this.showCategoryManager());
         this.priorityFilter.addEventListener('change', (e) => {
             this.currentPriorityFilter = e.target.value;
+            this.filterTodos();
+        });
+        
+        this.statusFilter.addEventListener('change', (e) => {
+            this.currentStatusFilter = e.target.value;
+            this.filterTodos();
+        });
+        
+        this.dueDateFilter.addEventListener('change', (e) => {
+            this.currentDueDateFilter = e.target.value;
             this.filterTodos();
         });
         
@@ -215,6 +229,49 @@ class TodoApp {
         if (this.currentPriorityFilter && this.currentPriorityFilter !== '') {
             const priority = parseInt(this.currentPriorityFilter);
             filteredTodos = filteredTodos.filter(todo => todo.priority === priority);
+        }
+        
+        // Apply status filter
+        if (this.currentStatusFilter && this.currentStatusFilter !== '') {
+            if (this.currentStatusFilter === 'completed') {
+                filteredTodos = filteredTodos.filter(todo => todo.completed);
+            } else if (this.currentStatusFilter === 'incomplete') {
+                filteredTodos = filteredTodos.filter(todo => !todo.completed);
+            }
+        }
+        
+        // Apply due date filter
+        if (this.currentDueDateFilter && this.currentDueDateFilter !== '') {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const weekEnd = new Date(today);
+            weekEnd.setDate(weekEnd.getDate() + 7);
+            
+            filteredTodos = filteredTodos.filter(todo => {
+                if (this.currentDueDateFilter === 'no_due_date') {
+                    return !todo.due_date;
+                }
+                
+                if (!todo.due_date) return false;
+                
+                const dueDate = new Date(todo.due_date);
+                const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+                
+                switch (this.currentDueDateFilter) {
+                    case 'overdue':
+                        return dueDate < now;
+                    case 'today':
+                        return dueDateOnly.getTime() === today.getTime();
+                    case 'tomorrow':
+                        return dueDateOnly.getTime() === tomorrow.getTime();
+                    case 'this_week':
+                        return dueDateOnly >= today && dueDateOnly <= weekEnd;
+                    default:
+                        return true;
+                }
+            });
         }
         
         this.renderTodos(filteredTodos);
